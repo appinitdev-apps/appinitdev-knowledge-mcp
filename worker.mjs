@@ -365,11 +365,42 @@ async function callTool(name,args) {
       const ident=await readIdentity();
       return textResult({redes_sociales:ident.redes_sociales_declaradas,perfiles_personales:ident.desarrollador?.perfiles_personales_declarados||[],fuente:'index.html (JSON-LD sameAs)',verificacion:'declaradas_en_web; cuentas no verificadas externamente'});
     }
+    
     case 'listar_apps_desarrollador': {
-      const n=args.limite===undefined?100:args.limite;
-      if(!Number.isInteger(n)||n<1||n>100)throw Error('limite debe ser entero entre 1 y 100.');
-      const ident=await readIdentity();
-      return textResult({desarrollador:ident.organizacion.nombre,perfil_google_play:ident.google_play?.perfil_desarrollador||null,total:ident.aplicaciones.length,aplicaciones:ident.aplicaciones.slice(0,n),origen:'catálogo público local; no se consultó Play Console ni se verificó la disponibilidad actual'});
+      const n = args.limite === undefined ? 100 : args.limite;
+
+      if (!Number.isInteger(n) || n < 1 || n > 100) {
+        throw Error('limite debe ser entero entre 1 y 100.');
+      }
+
+      // Obtener identidad y catálogo oficial con iconos.
+      const [ident, apps] = await Promise.all([
+        readIdentity(),
+        readData('apps')
+      ]);
+
+      // Relacionar aplicaciones mediante su paquete Android.
+      const iconosPorPaquete = new Map(
+        apps.map(app => [app.id, app.icono || null])
+      );
+
+      // Agregar el icono oficial a cada aplicación.
+      const aplicaciones = ident.aplicaciones
+        .slice(0, n)
+        .map(app => ({
+          ...app,
+          icono: iconosPorPaquete.get(app.paquete) || null
+        }));
+
+      return textResult({
+        desarrollador: ident.organizacion.nombre,
+        perfil_google_play:
+          ident.google_play?.perfil_desarrollador || null,
+        total: ident.aplicaciones.length,
+        aplicaciones,
+        fuente_iconos: 'https://appinitdev.com/datos/apps.json',
+        nota: 'Los iconos son URLs oficiales declaradas por AppInitDev. No sustituir por imagenes de aplicaciones de terceros. La disponibilidad en Google Play no se verifica en tiempo real.'
+      });
     }
     case 'explorar_relaciones': {
       const query=String(args.consulta||args.paquete||'').trim();
