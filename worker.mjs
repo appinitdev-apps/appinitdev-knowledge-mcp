@@ -7,7 +7,7 @@
 
 const VERSIONS = ['2026-07-28', '2025-11-25', '2025-06-18', '2025-03-26'];
 const PRIMARY_VERSION = VERSIONS[0];
-const RELEASE = '3.0.0';
+const RELEASE = '3.0.1';
 const DATA_ORIGIN = 'https://appinitdev.com/datos/';
 const ALLOWED_ORIGINS = new Set(['https://appinitdev.com', 'https://www.appinitdev.com']);
 const RESPONSE_HEADERS = {'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff'};
@@ -45,6 +45,90 @@ const tools = [
   {name:'resumen_impacto_ia',description:'Estadísticas agregadas importadas por el propietario; las citas Bing y el tráfico GSC son indicadores distintos.',inputSchema:{type:'object',properties:{},additionalProperties:false}},
   {name:'evaluar_reconocimiento',description:'Estado del laboratorio determinista de cobertura de datos; NO evalúa a modelos de IA externos.',inputSchema:{type:'object',properties:{},additionalProperties:false}}
 ];
+// -----------------------------------------------------------------------------
+// Metadatos MCP: claridad para clientes, seguridad declarativa y documentacion.
+// Todos los metodos actuales consultan datos publicos sin escribir sobre ellos.
+// Las anotaciones no son controles de acceso: la seguridad sigue en el Worker.
+// -----------------------------------------------------------------------------
+const TOOL_PARAMETER_HELP = {
+  buscar_apps: {
+    consulta: 'Nombre, categoria o funcion de una app. Ejemplos: Vault Wallet, archivos, fotos.',
+    limite: 'Cantidad maxima de aplicaciones devueltas, entre 1 y 20 (predeterminado: 10).'
+  },
+  obtener_app: {
+    identificador: 'ID de paquete Android o slug exacto de una aplicacion del catalogo publico.'
+  },
+  buscar_conocimiento: {
+    consulta: 'Terminos de busqueda de articulos, guias o investigaciones de AppInitDev.',
+    limite: 'Cantidad maxima de documentos devueltos, entre 1 y 20 (predeterminado: 10).'
+  },
+  listar_secciones: {
+    categoria: 'Categoria opcional para filtrar las secciones: todas, apps, articulos o herramientas.'
+  },
+  comparar_apps: {
+    identificadores: 'Arreglo de 2 a 5 paquetes Android o slugs exactos de aplicaciones para comparar.'
+  },
+  obtener_articulo: {
+    url: 'URL HTTPS canonica de un articulo listado en el catalogo publico appinitdev.com.',
+    max_caracteres: 'Longitud maxima del texto devuelto, entre 500 y 16000 caracteres (predeterminado: 12000).'
+  },
+  buscar_texto_completo: {
+    consulta: 'Palabras significativas que se buscaran en el indice del contenido HTML publicado.',
+    limite: 'Numero maximo de coincidencias, entre 1 y 10 (predeterminado: 5).',
+    tema: 'Etiqueta tematica opcional, tal como aparece en las clasificaciones del indice.',
+    solo_html: 'Si es true, restringe resultados a documentos cuyo HTML se indexo completamente.'
+  },
+  listar_apps_desarrollador: {
+    limite: 'Cantidad maxima de aplicaciones del desarrollador, entre 1 y 100 (predeterminado: 100).'
+  },
+  explorar_relaciones: {
+    consulta: 'Nombre, slug o texto opcional para buscar relaciones entre apps y articulos.',
+    paquete: 'Paquete Android opcional de la aplicacion cuyas relaciones se consultaran.',
+    limite: 'Cantidad maxima de relaciones devueltas, entre 1 y 10 (predeterminado: 5).'
+  }
+};
+
+const TOOL_TITLES = {
+  buscar_apps: 'Buscar aplicaciones',
+  obtener_app: 'Obtener ficha de aplicacion',
+  buscar_conocimiento: 'Buscar guias y articulos',
+  listar_secciones: 'Listar secciones del sitio',
+  comparar_apps: 'Comparar aplicaciones',
+  obtener_articulo: 'Leer articulo publicado',
+  buscar_texto_completo: 'Buscar en texto completo',
+  listar_temas: 'Listar temas del indice',
+  auditoria_conocimiento: 'Auditar cobertura documental',
+  estado_indice: 'Consultar estado del indice',
+  obtener_identidad: 'Consultar identidad de AppInitDev',
+  listar_redes_sociales: 'Consultar redes sociales',
+  listar_apps_desarrollador: 'Listar aplicaciones del desarrollador',
+  resumen_catalogo: 'Resumen del catalogo',
+  explorar_relaciones: 'Explorar relaciones de contenido',
+  consultar_idiomas: 'Consultar idiomas del sitio',
+  estado_play_store: 'Consultar resumen de Google Play',
+  resumen_impacto_ia: 'Consultar indicadores de impacto IA',
+  evaluar_reconocimiento: 'Consultar cobertura del laboratorio IA'
+};
+
+// Se mejora tools/list sin cambiar los nombres ni la ejecucion de tools/call.
+for (const tool of tools) {
+  tool.title = TOOL_TITLES[tool.name] || tool.name.replaceAll('_', ' ');
+  tool.annotations = {
+    readOnlyHint: true,
+    destructiveHint: false,
+    idempotentHint: true,
+    openWorldHint: false
+  };
+
+  for (const [name, schema] of Object.entries(tool.inputSchema?.properties || {})) {
+    const explanation = TOOL_PARAMETER_HELP[tool.name]?.[name];
+    if (!explanation) throw new Error('Falta descripcion MCP: ' + tool.name + '.' + name);
+    schema.description = explanation;
+    if (name === 'identificadores' && schema.items) {
+      schema.items.description = 'Paquete Android o slug de una aplicacion de AppInitDev.';
+    }
+  }
+}
 // Recursos de tamaño acotado y rutas fijas (no funciona como proxy arbitrario).
 const EXTRA_PATHS = new Set([
   'relaciones/resumen.json','relaciones/apps.json','idiomas/resumen.json',
