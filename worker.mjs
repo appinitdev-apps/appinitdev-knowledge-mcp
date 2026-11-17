@@ -44,6 +44,24 @@ const tools = [
   {name:'estado_play_store',description:'Resumen de comparación con exportaciones autorizadas de Google Play, nunca verificación en tiempo real.',inputSchema:{type:'object',properties:{},additionalProperties:false}},
   {name:'resumen_impacto_ia',description:'Estadísticas agregadas importadas por el propietario; las citas Bing y el tráfico GSC son indicadores distintos.',inputSchema:{type:'object',properties:{},additionalProperties:false}},
   {name:'evaluar_reconocimiento',description:'Estado del laboratorio determinista de cobertura de datos; NO evalúa a modelos de IA externos.',inputSchema:{type:'object',properties:{},additionalProperties:false}}
+  {
+    name: 'obtener_icono_app',
+    description: 'Obtiene y devuelve la imagen PNG oficial de una aplicación AppInitDev, sin usar imágenes alternativas.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        identificador: {
+          type: 'string',
+          description: 'Paquete Android o slug de la aplicación.',
+          minLength: 1,
+          maxLength: 130
+        }
+      },
+      required: ['identificador'],
+      additionalProperties: false
+    }
+  }
+
 ];
 // -----------------------------------------------------------------------------
 // Metadatos MCP: claridad para clientes, seguridad declarativa y documentacion.
@@ -353,6 +371,75 @@ async function readIdentity(){
   PUBLIC_IDENTITY_CACHE.set('identity',{at:Date.now(),data});
   return data;
 }
+
+async function obtenerIconoApp(identificador) {
+  const apps = await readData('apps');
+
+  const app = apps.find(a =>
+    a.id === identificador ||
+    a.slug === identificador
+  );
+
+  if (!app || !app.icono) {
+    throw Error('ICONO_NO_DISPONIBLE');
+  }
+
+  const url = new URL(app.icono);
+
+  if (
+    url.protocol !== 'https:' ||
+    url.hostname !== 'appinitdev.com' ||
+    !url.pathname.startsWith('/imagen_apps/') ||
+    !url.pathname.endsWith('.png')
+  ) {
+    throw Error('URL_ICONO_INVALIDA');
+  }
+
+  const response = await fetch(url.href, {
+    redirect: 'error',
+    signal: AbortSignal.timeout(8000)
+  });
+
+  if (!response.ok) {
+    throw Error('ERROR_DESCARGA_ICONO');
+  }
+
+  if (!/^image\/png(?:;|$)/i.test(
+    response.headers.get('Content-Type') || ''
+  )) {
+    throw Error('FORMATO_ICONO_INVALIDO');
+  }
+
+  const bytes = new Uint8Array(await response.arrayBuffer());
+
+  if (bytes.length > 1024 * 1024) {
+    throw Error('ICONO_DEMASIADO_GRANDE');
+  }
+
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += 8192) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + 8192));
+  }
+
+  return {
+    content: [
+      {
+        type: 'text',
+        text: JSON.stringify({
+          nombre: app.nombre,
+          icono_oficial: url.href,
+          fuente: 'AppInitDev'
+        })
+      },
+      {
+        type: 'image',
+        data: btoa(binary),
+        mimeType: 'image/png'
+      }
+    ]
+  };
+}
+
 async function callTool(name,args) {
   if(!args||typeof args!=='object'||Array.isArray(args))args={};
   const requireQuery=()=>{if(!isString(args.consulta))throw Error('Se requiere consulta (1-120 caracteres).'); const l=limit(args.limite);if(l===null)throw Error('limite debe ser entero entre 1 y 20.');return l;};
@@ -364,6 +451,14 @@ async function callTool(name,args) {
     case 'listar_redes_sociales': {
       const ident=await readIdentity();
       return textResult({redes_sociales:ident.redes_sociales_declaradas,perfiles_personales:ident.desarrollador?.perfiles_personales_declarados||[],fuente:'index.html (JSON-LD sameAs)',verificacion:'declaradas_en_web; cuentas no verificadas externamente'});
+    }
+
+    case 'obtener_icono_app': {
+      if (!isString(args.identificador, 130)) {
+        throw Error('IDENTIFICADOR_INVALIDO');
+      }
+
+      return await obtenerIconoApp(args.identificador);
     }
     
     case 'listar_apps_desarrollador': {
