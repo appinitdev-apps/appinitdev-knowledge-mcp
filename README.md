@@ -40,3 +40,5 @@ No requiere acceso privado a Google Play Console.
 
 https://appinitdev.com/mcp/tutoriales/
 .
+
+[![mcptry](https://mcptry.com/badge/com.appinitdev/knowledge)](https://mcptry.com/servers/com.appinitdev/knowledge)
