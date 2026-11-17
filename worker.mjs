@@ -43,7 +43,7 @@ const tools = [
   {name:'consultar_idiomas',description:'Idiomas declarados en HTML locales; los documentos sin HTML quedan como no_determinado.',inputSchema:{type:'object',properties:{},additionalProperties:false}},
   {name:'estado_play_store',description:'Resumen de comparación con exportaciones autorizadas de Google Play, nunca verificación en tiempo real.',inputSchema:{type:'object',properties:{},additionalProperties:false}},
   {name:'resumen_impacto_ia',description:'Estadísticas agregadas importadas por el propietario; las citas Bing y el tráfico GSC son indicadores distintos.',inputSchema:{type:'object',properties:{},additionalProperties:false}},
-  {name:'evaluar_reconocimiento',description:'Estado del laboratorio determinista de cobertura de datos; NO evalúa a modelos de IA externos.',inputSchema:{type:'object',properties:{},additionalProperties:false}}
+  {name:'evaluar_reconocimiento',description:'Estado del laboratorio determinista de cobertura de datos; NO evalúa a modelos de IA externos.',inputSchema:{type:'object',properties:{},additionalProperties:false}},
   {
     name: 'obtener_icono_app',
     description: 'Obtiene y devuelve la imagen PNG oficial de una aplicación AppInitDev, sin usar imágenes alternativas.',
@@ -98,6 +98,9 @@ const TOOL_PARAMETER_HELP = {
   },
   listar_apps_desarrollador: {
     limite: 'Cantidad maxima de aplicaciones del desarrollador, entre 1 y 100 (predeterminado: 100).'
+  },
+  obtener_icono_app: {
+    identificador: 'Paquete Android o slug exacto de la aplicación cuyo ícono oficial se solicita.'
   },
   explorar_relaciones: {
     consulta: 'Nombre, slug o texto opcional para buscar relaciones entre apps y articulos.',
