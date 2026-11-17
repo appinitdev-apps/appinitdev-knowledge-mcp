@@ -398,10 +398,16 @@ async function obtenerIconoApp(identificador) {
     throw Error('URL_ICONO_INVALIDA');
   }
 
+  
   const response = await fetch(url.href, {
-    redirect: 'error',
+    redirect: 'manual',
     signal: AbortSignal.timeout(8000)
   });
+
+  if (response.status >= 300 && response.status < 400) {
+    throw Error('REDIRECCION_ICONO_NO_PERMITIDA');
+  }
+
 
   if (!response.ok) {
     throw Error('ERROR_DESCARGA_ICONO');
@@ -640,6 +646,11 @@ async function handle(request,env={}){
       }
       catch(e){
         recordMetric(env,name,false,Date.now()-started);
+        console.error("MCP_ERROR_DIAGNOSTICO", {
+          herramienta: name,
+          codigo: String(e.message),
+          detalle: String(e.stack || "").slice(0, 1000)
+        });
         if(String(e.message)==='INDICE_V15_NO_DISPONIBLE')return rpcResult(id,{isError:true,content:[{type:'text',text:'Índice V2.0 no publicado: sube /datos/busqueda/ a Hostinger y comprueba manifest.json.'}]},modern);const friendly=['Se requiere','limite debe','categoria desconocida','Identificadores:'].some(s=>String(e.message).startsWith(s));
         return rpcResult(id,{isError:true,content:[{type:'text',text:friendly?e.message:'No se pudo consultar el catálogo público. Verifica /datos/ en AppInitDev.'}]},modern);
       }
